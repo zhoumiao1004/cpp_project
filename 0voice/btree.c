@@ -10,17 +10,18 @@
 typedef int KEY_VALUE;
 
 typedef struct _btree_node {
-	KEY_VALUE *keys;
-	struct _btree_node **childrens;
-	int num;
-	int leaf;
+	KEY_VALUE *keys;  // 一个结点保存的内容数组
+	struct _btree_node **childrens;  // 下层结点指针数组
+	int num;  // 下层结点数
+	int leaf;  // 1-叶子结点 0-非叶子结点
 } btree_node;
 
 typedef struct _btree {
 	btree_node *root;
-	int t;
+	int t;  // degree 一个结点保存的数据个数
 } btree;
 
+/* 创建一个新结点，容量为t */
 btree_node *btree_create_node(int t, int leaf) {
 
 	btree_node *node = (btree_node*)calloc(1, sizeof(btree_node));
@@ -44,7 +45,7 @@ void btree_destroy_node(btree_node *node) {
 	
 }
 
-
+/* 创建一颗树 */
 void btree_create(btree *T, int t) {
 	T->t = t;
 	
@@ -53,18 +54,21 @@ void btree_create(btree *T, int t) {
 	
 }
 
-
+/* 分裂
+ * x: 分裂的结点
+ * i: 分裂的位置
+ */
 void btree_split_child(btree *T, btree_node *x, int i) {
 	int t = T->t;
 
 	btree_node *y = x->childrens[i];
-	btree_node *z = btree_create_node(t, y->leaf);
+	btree_node *z = btree_create_node(t, y->leaf);  // 新创建一个和y同层的结点
 
 	z->num = t - 1;
 
 	int j = 0;
 	for (j = 0;j < t-1;j ++) {
-		z->keys[j] = y->keys[j+t];
+		z->keys[j] = y->keys[j+t]; // 把y的t个值复制过来
 	}
 	if (y->leaf == 0) {
 		for (j = 0;j < t;j ++) {
@@ -87,37 +91,42 @@ void btree_split_child(btree *T, btree_node *x, int i) {
 	
 }
 
+/* x:插入的结点
+   k:插入的值
+ */
 void btree_insert_nonfull(btree *T, btree_node *x, KEY_VALUE k) {
 
 	int i = x->num - 1;
 
 	if (x->leaf == 1) {
-		
+		/* X是叶子结点，没有children，直接找到位置插入 */
 		while (i >= 0 && x->keys[i] > k) {
-			x->keys[i+1] = x->keys[i];
+			x->keys[i+1] = x->keys[i];  // 往后挪出位置
 			i --;
 		}
 		x->keys[i+1] = k;
 		x->num += 1;
 		
 	} else {
+		/* x是非叶子结点 -> 找到叶子结点再插入 */
 		while (i >= 0 && x->keys[i] > k) i --;
-
+		// x->childrens[i+1]是要插入的结点 1.满 -> 分裂 2.不满 -> 递归插入
 		if (x->childrens[i+1]->num == (2*(T->t))-1) {
 			btree_split_child(T, x, i+1);
 			if (k > x->keys[i+1]) i++;
 		}
 
-		btree_insert_nonfull(T, x->childrens[i+1], k);
+		btree_insert_nonfull(T, x->childrens[i+1], k);  // 递归
 	}
 }
 
+/* 插入新结点 */
 void btree_insert(btree *T, KEY_VALUE key) {
 	//int t = T->t;
 
 	btree_node *r = T->root;
 	if (r->num == 2 * T->t - 1) {
-		
+		/* 全满了，根要分裂，创建新根结点 */
 		btree_node *node = btree_create_node(T->t, 0);
 		T->root = node;
 
@@ -126,7 +135,7 @@ void btree_insert(btree *T, KEY_VALUE key) {
 		btree_split_child(T, node, 0);
 
 		int i = 0;
-		if (node->keys[0] < key) i++;
+		if (node->keys[0] < key) i++;  // 找到第一个大于key的位置
 		btree_insert_nonfull(T, node->childrens[i], key);
 		
 	} else {
@@ -327,7 +336,7 @@ void btree_delete_key(btree *T, btree_node *node, KEY_VALUE key) {
 					
 					child->num ++;
 
-					node->key[idx-1] = left->keys[left->num-1];
+					node->keys[idx-1] = left->keys[left->num-1];
 					left->keys[left->num-1] = 0;
 					left->childrens[left->num] = NULL;
 					left->num --;
@@ -383,5 +392,3 @@ int main() {
 	}
 	
 }
-
-
